@@ -1,0 +1,169 @@
+{
+  "settings": {
+    "banking": {
+      "bankName": "Standard Bank",
+      "accountNumber": "10252684352",
+      "accountName": "SMT ORGANISATION",
+      "accountType": "Current Account",
+      "branchCode": "000205",
+      "reference": "Use your team name and “SpotBook” as the reference (e.g. TeamName SpotBook)."
+    },
+    "registrationPrerequisites": "BEST FIVE 2026 TEAM REGISTRATION\n\nWelcome to the BEST FIVE 2026 tournament registration! Thank you for choosing to be part of Limpopo’s biggest 5-a-side football tournament.\n\nTEAM COMPOSITION\nParticipation spots are limited to the first 16 teams. Each team must have 5–8 players. One player will serve as team captain.\n\nTEAM ENTRY FEE BREAKDOWN\nSpot booking: R250\nAffiliation fee: R1500\nThe spot booking fee is deducted from the affiliation fee and is not an additional fee.\n\nREQUIRED DOCUMENT\nHave your spot booking proof of payment (POP) ready as a PDF, JPG or PNG before starting. You must upload it when completing this form to reserve your spot. NO POP, NO REGISTRATION.\nThe spot booking fee is not refundable.\n\nPAYMENT DEADLINES\n50% (R625) of the remaining affiliation fee must be paid by 30 September 2026 and the balance before 30 November 2026 at 17:00. Late payments will be considered!\n\nCAPTAINS’ GROUP\nAll team captains must join the captain’s group chat to keep up with important updates. Please send your team logo upon joining the group chat.\nhttps://chat.whatsapp.com/DMNraaTNX3C5sfgd1fq9t?cs=cl&pi=i&lir=0&amv=0\n\nQUESTIONS?\nContact Thato Modiba at 071 413 6394 or BEST5EXHIBITION@GMAIL.COM.",
+    "lifecycle": "Pre Tournament",
+    "tournamentName": "BEST5 Football Exhibition",
+    "eventDate": "2026-12-12T09:00:00",
+    "venue": "Northern Muslim School",
+    "city": "Polokwane",
+    "prize": 10000,
+    "numberOfTeams": 16,
+    "affiliationFee": 1500,
+    "spotBookingFee": 250,
+    "vendorStallFee": 350,
+    "contactEmail": "admin@best5.co.za",
+    "contactPhone": "+27 72 000 5505",
+    "whatsapp": "+27 72 000 5505",
+    "instagram": "https://instagram.com/bestfivefootball_exhibition",
+    "facebook": "",
+    "twitter": "",
+    "youtube": "",
+    "tiktok": "",
+    "branding": {
+      "mainLogo": "/assets/images/logo/smt_logo.png",
+      "lightLogo": "/assets/images/logo/smt_logo.png",
+      "favicon": "/assets/images/logo/smt_logo.png"
+    },
+    "modules": {
+      "news": true,
+      "tournament": true,
+      "fixtures": true,
+      "results": true,
+      "standings": true,
+      "knockout": true,
+      "teams": true,
+      "teamRegistration": true,
+      "vendorRegistration": true,
+      "vendors": true,
+      "gallery": true,
+      "sponsors": true,
+      "countdown": true,
+      "liveScores": true,
+      "homepageNews": true,
+      "homepageTeams": true,
+      "homepageSponsors": true
+    }
+  },
+  "landing": {
+    "heroEyebrow": "SM Organisation presents",
+    "heroLineOne": "Best5",
+    "heroHighlight": "Football",
+    "heroLineThree": "Exhibition",
+    "heroDescription": "A one-day 5-a-side football showcase where Polokwane's best meet under the lights. Five players. One champion. No excuses.",
+    "heroImages": [
+      "/assets/images/background-posters/IMG_3720.JPG",
+      "/assets/images/background-posters/IMG_3715.JPG",
+      "/assets/images/background-posters/WhatsApp Image 2026-09-10 at 5.20.54 PM.jpeg"
+    ],
+    "primaryButton": "Register your team",
+    "secondaryButton": "View tournament",
+    "cultureEyebrow": "More than a match",
+    "cultureTitle": "Bring the whole culture.",
+    "cultureDescription": "From food and drinks to streetwear and brand activations, the BEST5 village is where the community comes to play.",
+    "cultureImage": "/assets/images/background-posters/WhatsApp Image 2026-09-10 at 5.20.54 PM.jpeg",
+    "cultureButton": "Become a vendor",
+    "ctaEyebrow": "The whistle is coming",
+    "ctaTitle": "Are you in?",
+    "ctaButton": "Register your team"
+  },
+  "teams": [],
+  "fixtures": [],
+  "posts": [
+    {
+      "id": "P1",
+      "title": "The road to BEST5 begins now",
+      "slug": "road-to-best5",
+      "category": "Tournament",
+      "excerpt": "Sixteen teams. One electric day. The countdown to Polokwane is officially on.",
+      "content": "BEST5 is where local football energy meets a world-class tournament stage. With 16 teams entering the arena, every touch will matter.",
+      "image": "/assets/images/background-posters/WhatsApp_Image_2026-09-10_at_5.10.05_PM_(1).jpeg",
+      "date": "18 Aug 2026",
+      "featured": true,
+      "status": "Published"
+    },
+    {
+      "id": "P2",
+      "title": "Affiliations are open",
+      "slug": "affiliations-open",
+      "category": "Announcements",
+      "excerpt": "Secure your spot, build your squad and get ready to play for the R10,000 winner-takes-all prize.",
+      "content": "Team affiliations are now open. Bring your best five and make your mark.",
+      "image": "/assets/images/background-posters/WhatsApp_Image_2026-09-10_at_5.10.05_PM.jpeg",
+      "date": "13 Aug 2026",
+      "featured": false,
+      "status": "Published"
+    },
+    {
+      "id": "P3",
+      "title": "Meet the BEST5 mascot",
+      "slug": "meet-the-mascot",
+      "category": "Culture",
+      "excerpt": "Meet the character bringing energy, style and a little mischief to matchday.",
+      "content": "The BEST5 mascot is ready for the whistle. Find him pitch-side on 12 December.",
+      "image": "/assets/images/background-posters/WhatsApp_Image_2026-09-10_at_5.08.28_PM_(2).jpeg",
+      "date": "08 Aug 2026",
+      "featured": false,
+      "status": "Published"
+    }
+  ],
+  "gallery": [
+    {
+      "id": "default-gallery-0",
+      "src": "/assets/images/background-posters/IMG_3720.JPG",
+      "name": "BEST5 highlight 1",
+      "caption": "BEST5 event artwork",
+      "category": "Gallery",
+      "type": "image/jpeg",
+      "createdAt": "2026-09-01T00:00:00Z",
+      "featured": true,
+      "visible": true,
+      "order": 0
+    },
+    {
+      "id": "default-gallery-1",
+      "src": "/assets/images/background-posters/IMG_3715.JPG",
+      "name": "BEST5 highlight 2",
+      "caption": "BEST5 event artwork",
+      "category": "Gallery",
+      "type": "image/jpeg",
+      "createdAt": "2026-09-01T00:00:00Z",
+      "featured": false,
+      "visible": true,
+      "order": 1
+    },
+    {
+      "id": "default-gallery-2",
+      "src": "/assets/images/background-posters/WhatsApp Image 2026-09-10 at 5.20.54 PM.jpeg",
+      "name": "BEST5 highlight 3",
+      "caption": "BEST5 event artwork",
+      "category": "Gallery",
+      "type": "image/jpeg",
+      "createdAt": "2026-09-01T00:00:00Z",
+      "featured": false,
+      "visible": true,
+      "order": 2
+    },
+    {
+      "id": "default-gallery-3",
+      "src": "/assets/images/background-posters/gal1.jpeg",
+      "name": "BEST5 highlight 4",
+      "caption": "BEST5 event artwork",
+      "category": "Gallery",
+      "type": "image/jpeg",
+      "createdAt": "2026-09-01T00:00:00Z",
+      "featured": false,
+      "visible": true,
+      "order": 3
+    }
+  ],
+  "media": [],
+  "vendors": []
+}
