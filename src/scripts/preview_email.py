@@ -14,7 +14,7 @@ parser.add_argument('--output',default='/tmp/best5-invitation-preview.html')
 args=parser.parse_args()
 html=invitation_email('Mohlatlego','admin',settings.frontend_url.rstrip('/')+'/admin/accept-invitation#token=preview-only')
 # A self-contained preview can display the local asset without hosting it publicly.
-logo=root.parent.parent/'football_exhibition_cms/public/assets/images/logo/smt_logo.png'
+logo=root.parent.parent/'football_exhibition_cms/src/public/assets/images/logo/smt_logo.png'
 if logo.is_file(): html=html.replace(logo_url(),'data:image/png;base64,'+base64.b64encode(logo.read_bytes()).decode())
 output=Path(args.output);output.write_text(html,encoding='utf-8')
 print(f'Email preview saved: {output}')
