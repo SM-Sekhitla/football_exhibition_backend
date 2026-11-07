@@ -39,11 +39,11 @@ The local backend runs on your computer, so its database URL must use a publishe
 A dedicated BEST5 database is defined in `docker-compose.yml`, isolated from the PRISM and other project containers:
 
 ```bash
-docker compose up -d postgres
+docker compose --env-file src/.env up -d postgres
 python3 src/run_backend.py --skip-install
 ```
 
-The database is published at `127.0.0.1:5434` (`POSTGRES_PORT` overrides this mapping). The backend `src/.env` uses this address and retains its configured database credentials. If changing `POSTGRES_PORT`, update the port in `DATABASE_URL` too. Data persists in the `best5-local_postgres_data` Docker volume. Stop it with `docker compose stop postgres`; do not remove the volume when you want to preserve data.
+The database is published at `127.0.0.1:5434` (`POSTGRES_PORT` overrides this mapping). The backend `src/.env` uses this address and retains its configured database credentials. If changing `POSTGRES_PORT`, update the port in `DATABASE_URL` too. Data persists in the `best5-local_postgres_data` Docker volume. Stop it with `docker compose --env-file src/.env stop postgres`; do not remove the volume when you want to preserve data.
 
 The frontend's native-development proxy uses `http://127.0.0.1:8002`. For a backend running inside the same Compose network instead, use the service address `postgres:5432` for its database connection. A separate database does not import data from other projects or the old SQLite file.
 
@@ -91,7 +91,7 @@ For a new database, `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` can overr
 
 ```text
 README.md
-docker-compose.yml    Loads src/docker-compose.yml with src/.env
+docker-compose.yml    Local PostgreSQL service; use --env-file src/.env
 src/
   app/                Python application package
     api/              Versioned routes and authentication dependencies
@@ -217,4 +217,4 @@ npx playwright test --project=chromium
 
 API tests cover authentication, forced password changes, CSRF, RBAC, private uploads, registration lookup, banking bypass prevention, optimistic revisions, sanitisation, reset-token reuse, Brevo retries, and concurrent capacity enforcement. Browser tests launch an isolated temporary backend database on port 8001 and frontend on 5175; they never use the development database, initial admin account or live email credentials.
 
-Build the backend image from the runtime directory: `docker build -t best5-backend ./src`. Compose loads `src/.env` automatically through its included configuration.
+Build the backend image from the runtime directory: `docker build -t best5-backend ./src`. Run Compose from the repository root with `--env-file src/.env` to load the backend configuration.
