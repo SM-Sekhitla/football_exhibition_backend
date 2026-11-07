@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Annotated
 import json
+import re
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from pydantic import AliasChoices, Field, field_validator, model_validator
 from sqlalchemy.engine import make_url
@@ -12,6 +13,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT / '.env', extra='ignore', populate_by_name=True)
     environment: str = 'development'
     app_name: str = 'BEST5 API'
+    docs_enabled: bool | None = None
+    render_external_hostname: str = ''
     api_v1_prefix: str = '/api/v1'
     auto_create_tables: bool = True
     database_url: str = f'sqlite:///{ROOT / "data/best5.db"}'
@@ -84,7 +87,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode='after')
     def configure(self):
-        self.trusted_hosts=list(dict.fromkeys(self.trusted_hosts+self.allowed_hosts))
+        hosts=self.trusted_hosts+self.allowed_hosts
+        if self.render_external_hostname:
+            hostname=self.render_external_hostname.strip().lower()
+            if len(hostname)>253 or not re.fullmatch(r'[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?',hostname):
+                raise ValueError('RENDER_EXTERNAL_HOSTNAME must be a hostname without scheme, port or wildcard')
+            hosts=hosts+[hostname]
+        self.trusted_hosts=list(dict.fromkeys(hosts))
         if not self.email_sender: self.email_sender=self.brevo_from_email
         if self.brevo_from_name and 'email_sender_name' not in self.model_fields_set:
             self.email_sender_name=self.brevo_from_name

@@ -218,3 +218,9 @@ npx playwright test --project=chromium
 API tests cover authentication, forced password changes, CSRF, RBAC, private uploads, registration lookup, banking bypass prevention, optimistic revisions, sanitisation, reset-token reuse, Brevo retries, and concurrent capacity enforcement. Browser tests launch an isolated temporary backend database on port 8001 and frontend on 5175; they never use the development database, initial admin account or live email credentials.
 
 Build the backend image from the repository root: `docker build -t best5-backend .`. For deployment, use Dockerfile path `./Dockerfile` and build context `.`. The container uses the hosting provider’s `PORT` when set, then `APP_PORT`, `BACKEND_PORT`, or 8002. Configure backend secrets through the hosting environment; local `.env` files are excluded from the image. Run Compose from the repository root with `--env-file src/.env` to load the backend configuration.
+
+## Render host validation and API docs
+
+The API adds Render's `RENDER_EXTERNAL_HOSTNAME` to its explicit host allowlist automatically. Add custom domains through `ALLOWED_HOSTS` (hostnames only, no `https://` or paths). For existing deployments before this change, set `ALLOWED_HOSTS=football-exhibition-backend.onrender.com` and redeploy to resolve `Invalid host header`.
+
+Swagger is at `/docs` in development. To enable it in production, set `DOCS_ENABLED=true` in the service environment and redeploy. Set the health-check path to `/api/v1/health`; `/` is not an application endpoint.

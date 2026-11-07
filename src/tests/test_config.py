@@ -41,3 +41,33 @@ def test_last_dotenv_assignment_wins_and_limits_are_configured(tmp_path):
     assert config.brevo_api_key==''
     assert config.max_document_size_mb==25 and config.max_branding_image_size_mb==5
     assert config.proof_types==['application/pdf','image/png']
+
+
+def test_render_hostname_is_added_without_trusting_other_domains(monkeypatch):
+    monkeypatch.setenv('RENDER_EXTERNAL_HOSTNAME','football-exhibition-backend.onrender.com')
+    config=Settings(_env_file=None, trusted_hosts=['localhost'], allowed_hosts=['custom.example.com'])
+    assert config.trusted_hosts==['localhost','custom.example.com','football-exhibition-backend.onrender.com']
+    assert '*' not in config.trusted_hosts
+
+
+def test_render_hostname_rejects_urls_and_wildcards():
+    import pytest
+    for value in ['https://example.com','*.onrender.com','example.com/path','example.com:443']:
+        with pytest.raises(ValueError):
+            Settings(_env_file=None,render_external_hostname=value)
+
+
+def test_docs_can_be_enabled_in_production():
+    config=Settings(_env_file=None,environment='production',secure_cookies=True,
+        frontend_url='https://example.com',docs_enabled=True)
+    assert config.docs_enabled is True
+
+
+def test_docs_accept_configured_host_and_reject_unknown_host(monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import create_app, settings
+    monkeypatch.setattr(settings,'trusted_hosts',['football-exhibition-backend.onrender.com'])
+    monkeypatch.setattr(settings,'docs_enabled',True)
+    client=TestClient(create_app(),base_url='https://football-exhibition-backend.onrender.com')
+    assert client.get('/docs').status_code==200
+    assert client.get('/docs',headers={'host':'untrusted.example.com'}).status_code==400

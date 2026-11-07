@@ -26,7 +26,7 @@ async def lifespan(app):
 
 
 def create_app():
-    app=FastAPI(title=settings.app_name,version='1.0.0',lifespan=lifespan,docs_url='/docs' if settings.environment!='production' else None,redoc_url=None)
+    app=FastAPI(title=settings.app_name,version='1.0.0',lifespan=lifespan,docs_url='/docs' if (settings.docs_enabled if settings.docs_enabled is not None else settings.environment!='production') else None,redoc_url=None)
     app.add_middleware(SecurityMiddleware)
     app.add_middleware(TrustedHostMiddleware,allowed_hosts=settings.trusted_hosts)
     app.add_middleware(CORSMiddleware,allow_origins=settings.cors_origins,allow_credentials=True,allow_methods=['GET','POST','PUT','PATCH','DELETE','OPTIONS'],allow_headers=['Content-Type','X-CSRF-Token','X-Request-ID'],expose_headers=['X-Request-ID'])
