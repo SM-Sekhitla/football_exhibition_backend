@@ -1,26 +1,26 @@
 # BEST5 backend
 
-FastAPI backend for `../football_exhibition_cms`, following PRISM's separation of versioned routes, controllers, services, schemas, database models, dependencies, and middleware. All application code lives under `src/`. This is a single-tournament application; PRISM's tenant-specific CRM logic is intentionally not copied.
+FastAPI backend for `../football_exhibition_cms`, following PRISM's separation of versioned routes, controllers, services, schemas, database models, dependencies, and middleware. Application code lives under `src/app/`; runtime configuration, migrations, scripts, tests and local storage live under `src/`. This is a single-tournament application; PRISM's tenant-specific CRM logic is intentionally not copied.
 
 ## Run locally
 
 From this directory, run:
 
 ```bash
-python3 run_backend.py
+python3 src/run_backend.py
 ```
 
-The launcher creates `.venv` if needed, installs the pinned dependencies, checks the configured database, applies Alembic migrations, and starts `src.main:app` with automatic reload. It checks `/api/v1/health` before reporting readiness. The Brevo worker already runs inside the API; no separate worker is started. Ctrl+C stops the server and reload children.
+The launcher creates `src/.venv` if needed, installs the pinned dependencies, checks the configured database, applies Alembic migrations, and starts `app.main:app` with automatic reload. It checks `/api/v1/health` before reporting readiness. The Brevo worker already runs inside the API; no separate worker is started. Ctrl+C stops the server and reload children.
 
-Create `.env` from `.env.example` to customise configuration. Existing `.env` files and credentials are preserved. The launcher checks for an occupied port before installing dependencies or applying migrations.
+Create `src/.env` from `src/.env.example` to customise configuration. Existing `src/.env` files and credentials are preserved. The launcher checks for an occupied port before installing dependencies or applying migrations.
 
 ```bash
-python3 run_backend.py --skip-install             # Faster subsequent starts
-python3 run_backend.py --no-reload                # Disable reload
-python3 run_backend.py --port 8012                # Custom local port
+python3 src/run_backend.py --skip-install             # Faster subsequent starts
+python3 src/run_backend.py --no-reload                # Disable reload
+python3 src/run_backend.py --port 8012                # Custom local port
 ```
 
-Port precedence is `--port`, then `APP_PORT`, `BACKEND_PORT`, `BEST5_PORT`, then `8002`. Host precedence is `--host`, `APP_HOST`, then `127.0.0.1`. Values can come from the shell environment or `.env` (the shell wins for each key). When changing ports, update the frontend's `BEST5_BACKEND_URL` accordingly. The existing `./scripts/start.sh` remains available for starting an already-installed environment without reload.
+Port precedence is `--port`, then `APP_PORT`, `BACKEND_PORT`, `BEST5_PORT`, then `8002`. Host precedence is `--host`, `APP_HOST`, then `127.0.0.1`. Values can come from the shell environment or `src/.env` (the shell wins for each key). When changing ports, update the frontend's `BEST5_BACKEND_URL` accordingly. The existing `./src/scripts/start.sh` remains available for starting an already-installed environment without reload.
 
 Port 8000 was already occupied locally, so this project defaults to 8002 (`BEST5_PORT` overrides the startup port). The API listens at `http://127.0.0.1:8002`, with development documentation at `/docs` and health at `/api/v1/health`. Start the frontend in a second terminal:
 
@@ -40,16 +40,16 @@ A dedicated BEST5 database is defined in `docker-compose.yml`, isolated from the
 
 ```bash
 docker compose up -d postgres
-python3 run_backend.py --skip-install
+python3 src/run_backend.py --skip-install
 ```
 
-The database is published at `127.0.0.1:5434` (`POSTGRES_PORT` overrides this mapping). The backend `.env` uses this address and retains its configured database credentials. If changing `POSTGRES_PORT`, update the port in `DATABASE_URL` too. Data persists in the `best5-local_postgres_data` Docker volume. Stop it with `docker compose stop postgres`; do not remove the volume when you want to preserve data.
+The database is published at `127.0.0.1:5434` (`POSTGRES_PORT` overrides this mapping). The backend `src/.env` uses this address and retains its configured database credentials. If changing `POSTGRES_PORT`, update the port in `DATABASE_URL` too. Data persists in the `best5-local_postgres_data` Docker volume. Stop it with `docker compose stop postgres`; do not remove the volume when you want to preserve data.
 
 The frontend's native-development proxy uses `http://127.0.0.1:8002`. For a backend running inside the same Compose network instead, use the service address `postgres:5432` for its database connection. A separate database does not import data from other projects or the old SQLite file.
 
 ## Environment configuration
 
-Both applications load their own `.env` files. Shell variables override file values; the final occurrence of a repeated key in a file wins, including an empty assignment. Existing `.env` files are not rewritten by this integration.
+The backend loads `src/.env`; the frontend loads its own root `.env`. Shell variables override file values; the final occurrence of a repeated key in a file wins, including an empty assignment. Existing `src/.env` files are not rewritten by this integration.
 
 The current frontend configuration selects port **5174**, origin `http://localhost:5174`, and API target `http://127.0.0.1:8002`. The current backend configuration selects port **8002**, PostgreSQL at `127.0.0.1:5434`, and CORS origins on port **5174**. The native-development URLs use published loopback addresses. Docker-only service names should be used only by processes on the corresponding Docker network; the code does not silently substitute another database or API server.
 
@@ -90,17 +90,31 @@ For a new database, `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` can overr
 ## Layout
 
 ```text
+README.md
+docker-compose.yml    Loads src/docker-compose.yml with src/.env
 src/
-  api/deps.py          Database session, authentication and permission dependencies
-  api/v1/router.py    Versioned routes
-  controllers/        Auth, content, registrations, users and log endpoints
-  core/               Configuration, Argon2 password hashing, roles and logging
-  db/                 SQLAlchemy models and sessions
-  middleware/         Origin checks, request limits, body size bounds, request IDs and headers
-  schemas/            Request validation
-  services/           Atomic workflows, seed content, uploads, audit and Brevo outbox
-migrations/           Alembic schema history
-scripts/              Development and isolated browser-test startup
+  app/                Python application package
+    api/              Versioned routes and authentication dependencies
+    controllers/      HTTP endpoints
+    core/             Configuration, security, RBAC and logging
+    db/               Models and sessions
+    middleware/       Request validation, limits and security headers
+    schemas/          Request validation
+    services/         Workflows, uploads, audit and Brevo outbox
+  alembic/            Schema migration history
+  scripts/            Startup, email preview and browser-test helpers
+  tests/              Backend tests
+  data/               Local data and bootstrap credentials (ignored)
+  logs/               Runtime logs (ignored)
+  storage/            Uploaded files (ignored)
+  .venv/              Local Python environment (ignored)
+  .env                Local configuration and secrets (ignored)
+  .env.example
+  Dockerfile
+  alembic.ini
+  pytest.ini
+  requirements.txt
+  run_backend.py
 ```
 
 My Account is under `Settings → My Account`; it is available to every signed-in staff role. Password setup, change and reset fields provide independent show/hide controls.
@@ -129,7 +143,7 @@ Invitation tokens are stored hashed, expire after 48 hours, and can be used only
 
 For staff created before this feature, use **Send setup email** on their pending account. For a failed/expired invitation, use **Resend invitation**, which generates a fresh link. Account cards show setup and email queue status; **Refresh staff** reloads it. `sent` means Brevo accepted the message, not confirmed inbox delivery.
 
-Delivery requires `EMAIL_ENABLED=true`, a valid `BREVO_API_KEY` and a verified `EMAIL_SENDER` (or `BREVO_FROM_EMAIL`). Restart the backend after changing `.env`. When email is disabled, creation explicitly reports that the invitation is queued but cannot be delivered. The application never displays a token/link in admin API responses or request/audit logs. Expired invitation emails are not sent; request a new invitation instead.
+Delivery requires `EMAIL_ENABLED=true`, a valid `BREVO_API_KEY` and a verified `EMAIL_SENDER` (or `BREVO_FROM_EMAIL`). Restart the backend after changing `src/.env`. When email is disabled, creation explicitly reports that the invitation is queued but cannot be delivered. The application never displays a token/link in admin API responses or request/audit logs. Expired invitation emails are not sent; request a new invitation instead.
 
 ## Registrations and files
 
@@ -143,7 +157,7 @@ Delivery requires `EMAIL_ENABLED=true`, a valid `BREVO_API_KEY` and a verified `
 
 ## Brevo email
 
-Set these in `.env` and restart the backend:
+Set these in `src/.env` and restart the backend:
 
 ```dotenv
 BREVO_API_KEY=your-brevo-api-key
@@ -167,7 +181,7 @@ The logo defaults to the main logo saved in site branding. Set `EMAIL_LOGO_URL` 
 Preview without sending email:
 
 ```bash
-.venv/bin/python scripts/preview_email.py
+src/.venv/bin/python src/scripts/preview_email.py
 ```
 
 This writes `/tmp/best5-invitation-preview.html` with the local logo embedded for offline preview and a nonfunctional demonstration token. Invitations already delivered remain unchanged; use Resend invitation to generate a new message with the updated design.
@@ -184,7 +198,7 @@ SQLite is the zero-configuration local default. PostgreSQL is supported using:
 DATABASE_URL=postgresql+psycopg://best5:password@localhost:5432/best5
 ```
 
-Run `.venv/bin/alembic upgrade head` before production startup. Development can create missing tables; production requires migrations. Keep the database, configured `DOCUMENT_PATH`/`BRANDING_PATH` upload directories (or legacy `data/uploads`), and logs on persistent storage and back up the database and uploads together. Uploaded assets cannot be recovered from the database alone.
+Run `cd src && .venv/bin/alembic upgrade head` before production startup. Development can create missing tables; production requires migrations. Keep the database, configured `DOCUMENT_PATH`/`BRANDING_PATH` upload directories (or legacy `data/uploads`), and logs on persistent storage and back up the database and uploads together. Uploaded assets cannot be recovered from the database alone.
 
 For production, set `ENVIRONMENT=production`, `SECURE_COOKIES=true`, `FRONTEND_URL=https://your-domain`, explicit `CORS_ORIGINS`, and `TRUSTED_HOSTS`. HTTPS and secure cookies are enforced by startup configuration. Serve the frontend and `/api` through the same HTTPS origin so the browser can send cookies and the CSRF header. Never expose `data/`, the initial credential file, or logs as static files.
 
@@ -193,7 +207,7 @@ The built-in rate limiter is per process and uses the actual connecting IP, igno
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest -q
+cd src && .venv/bin/python -m pytest -q
 cd ../football_exhibition_cms
 npm run typecheck
 npm run lint
@@ -202,3 +216,5 @@ npx playwright test --project=chromium
 ```
 
 API tests cover authentication, forced password changes, CSRF, RBAC, private uploads, registration lookup, banking bypass prevention, optimistic revisions, sanitisation, reset-token reuse, Brevo retries, and concurrent capacity enforcement. Browser tests launch an isolated temporary backend database on port 8001 and frontend on 5175; they never use the development database, initial admin account or live email credentials.
+
+Build the backend image from the runtime directory: `docker build -t best5-backend ./src`. Compose loads `src/.env` automatically through its included configuration.
