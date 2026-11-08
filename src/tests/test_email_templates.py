@@ -57,3 +57,20 @@ def test_brevo_receives_html_and_text_and_both_are_cleared_after_send(client,mon
     with SessionLocal() as db:
         job=db.scalar(select(EmailJob).where(EmailJob.recipient=='html-invite@example.com'))
         assert job.status=='sent' and job.body=='' and job.html_body is None
+
+
+def test_registration_receipt_has_reference_status_button_and_escaped_name(monkeypatch):
+    from html import unescape
+    from urllib.parse import urlsplit,parse_qs
+    from app.services.email_templates import application_email
+    monkeypatch.setattr(settings,'frontend_url','https://best5football.co.za')
+    for kind in ('team','vendor'):
+        text,html=application_email(kind,'United <script>bad()</script>','B5-REFERENCE')
+        assert 'B5-REFERENCE' in text and 'B5-REFERENCE' in html
+        assert 'Check application status' in html
+        assert '<script>bad()' not in html
+        assert '&lt;script&gt;' in html
+        link=text.split('Check application status: ')[1].splitlines()[0]
+        parsed=urlsplit(unescape(link))
+        assert parsed.netloc=='best5football.co.za' and parsed.path=='/application-status'
+        assert parse_qs(parsed.fragment)=={'reference':['B5-REFERENCE']}

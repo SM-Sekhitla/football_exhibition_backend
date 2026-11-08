@@ -8,6 +8,7 @@ from app.schemas.registration import Lookup, Review, TeamApplication, VendorAppl
 from app.services.audit import audit
 from app.services.content import document, lock_operations, reserve, snapshot
 from app.services.email import enqueue_email
+from app.services.email_templates import application_email
 from app.services.storage import save_upload
 
 
@@ -26,7 +27,8 @@ def create_team(body: TeamApplication, db: DB, request: Request):
     value.update(logo=logo, id=identifier, email=str(body.email).lower(), submitted=datetime.now(timezone.utc).isoformat(), status='Pending', paymentStatus='Under review', proofOfPayment={k:proof[k] for k in ('id','name','type','data')}, prerequisitesAcceptedAt=datetime.now(timezone.utc).isoformat(), prerequisitesVersion=db.get(Document,'settings').revision)
     db.add(Record(id=identifier, collection='teamRegs', identity=identity, value=value))
     reserve(db,'teamRegs'); audit(db,'registrations','Team application submitted',request_id=request.state.request_id)
-    enqueue_email(db,value['email'],'BEST5 team application received', f'Your reference is {identifier}. Your application and proof of payment are pending review. Check your status using this reference and email on the BEST5 website. Submission does not confirm your place.')
+    text,html=application_email('team',value['teamName'],identifier,db)
+    enqueue_email(db,value['email'],'BEST5 team application received',text,html)
     db.commit()
     return {'id':identifier, 'status':'Pending','paymentStatus':'Under review'}
 
@@ -39,7 +41,8 @@ def create_vendor(body: VendorApplication, db: DB, request: Request):
     if db.scalar(select(Record).where(Record.collection=='vendorRegs',Record.identity==identity)): raise HTTPException(409,'An application already exists for this business')
     value = body.model_dump(); value.update(id=identifier,email=str(body.email).lower(),submitted=datetime.now(timezone.utc).isoformat(),status='Pending',paymentStatus='Awaiting payment')
     db.add(Record(id=identifier,collection='vendorRegs',identity=identity,value=value)); reserve(db,'vendorRegs')
-    enqueue_email(db,value['email'],'BEST5 vendor application received',f'Your application reference is {identifier}. Your application is pending review.')
+    text,html=application_email('vendor',value['business'],identifier,db)
+    enqueue_email(db,value['email'],'BEST5 vendor application received',text,html)
     audit(db,'registrations','Vendor application submitted',request_id=request.state.request_id); db.commit()
     return {'id':identifier,'status':'Pending','paymentStatus':'Awaiting payment'}
 

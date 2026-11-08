@@ -355,3 +355,29 @@ def test_registration_rejects_invalid_and_oversized_logos(client,monkeypatch):
     monkeypatch.setattr(settings,'max_branding_image_size_mb',1)
     body['logo']={'name':'large.png','type':'image/png','data':'data:image/png;base64,'+base64.b64encode(b'x'*(1024*1024+1)).decode()}
     assert client.post('/api/v1/registrations/team',json=body).status_code==422
+
+
+def test_team_and_vendor_registration_queue_status_emails(client):
+    team=client.post('/api/v1/registrations/team',json=application('Email United'))
+    vendor=client.post('/api/v1/registrations/vendor',json={'business':'Food & Friends','contact':'Vendor Captain','category':'Food & Drinks','email':'vendor@example.com','description':'Fresh food on matchday.'})
+    assert team.status_code==201 and vendor.status_code==201
+    with SessionLocal() as db:
+        jobs=db.scalars(select(EmailJob)).all()
+        assert len(jobs)==2
+        for response,recipient in [(team,'captain@example.com'),(vendor,'vendor@example.com')]:
+            job=next(job for job in jobs if job.recipient==recipient)
+            reference=response.json()['id']
+            assert reference in job.body and reference in job.html_body
+            assert 'Check application status' in job.html_body
+            assert '/application-status#reference=' in job.html_body
+            assert job.status=='pending'
+
+
+def test_sponsor_logos_save_and_are_public(client):
+    login(client)
+    snapshot=client.get('/api/v1/admin/bootstrap').json()
+    landing=snapshot['data']['landing']
+    landing['sponsorLogos']=[{'id':'test-sponsor','name':'Test Sponsor','image':'/assets/images/sponsors/aquelle.png','scale':1.2}]
+    response=client.put('/api/v1/admin/content/landing',json={'value':landing,'revision':snapshot['revisions']['landing']})
+    assert response.status_code==200,response.text
+    assert client.get('/api/v1/public/bootstrap').json()['data']['landing']['sponsorLogos'][0]['name']=='Test Sponsor'

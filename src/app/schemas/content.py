@@ -70,7 +70,14 @@ class Vendor(Model):
     visible: bool
     updatedAt: str = Field(max_length=50)
 
+class SponsorLogo(Model):
+    id: str = Field(min_length=1,max_length=80)
+    name: str = Field(min_length=1,max_length=150)
+    image: str = Field(min_length=1,max_length=28_000_000)
+    scale: float = Field(default=1,ge=1,le=2,allow_inf_nan=False)
+
 class Landing(Model):
+    sponsorLogos: list[SponsorLogo] = Field(default_factory=list,max_length=50)
     heroEyebrow: str = Field(min_length=1,max_length=200)
     heroLineOne: str = Field(min_length=1,max_length=200)
     heroHighlight: str = Field(min_length=1,max_length=200)

@@ -72,7 +72,27 @@
     "cultureButton": "Become a vendor",
     "ctaEyebrow": "The whistle is coming",
     "ctaTitle": "Are you in?",
-    "ctaButton": "Register your team"
+    "ctaButton": "Register your team",
+    "sponsorLogos": [
+      {
+        "id": "silverdrop",
+        "name": "Silverdrop Water",
+        "image": "/assets/images/sponsors/silverdrop.png",
+        "scale": 1.25
+      },
+      {
+        "id": "aquelle",
+        "name": "aQuellé",
+        "image": "/assets/images/sponsors/aquelle.png",
+        "scale": 1.15
+      },
+      {
+        "id": "mall-of-the-north",
+        "name": "Mall of the North",
+        "image": "/assets/images/sponsors/mall-of-the-north.jpeg",
+        "scale": 1.6
+      }
+    ]
   },
   "teams": [],
   "fixtures": [],
