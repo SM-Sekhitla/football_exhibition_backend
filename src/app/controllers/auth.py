@@ -1,5 +1,6 @@
 from datetime import timedelta
 from uuid import uuid4
+from urllib.parse import urlsplit
 from fastapi import HTTPException, Request, Response
 from sqlalchemy import delete, select
 from app.api.deps import DB, CurrentUser
@@ -15,6 +16,12 @@ from app.services.invitations import invalidate_invitations
 from app.services.content import lock_operations
 
 COOKIE = dict(httponly=True, secure=settings.secure_cookies, samesite='lax', path=settings.api_v1_prefix)
+
+def csrf_domain(request: Request):
+    # Custom sibling domains share CSRF; a same-origin preview proxy uses its own cookie.
+    domain=settings.csrf_cookie_domain
+    origin=urlsplit(request.headers.get('origin') or str(request.base_url)).hostname or ''
+    return domain if domain and (origin == domain or origin.endswith('.'+domain)) else None
 
 def public_user(user):
     return {'id': user.id, 'email': user.email, 'name': user.name, 'role': user.role, 'permissions': sorted(ROLES.get(user.role, set())), 'mustChangePassword': user.must_change_password}
@@ -32,7 +39,7 @@ def login(body: Login, request: Request, response: Response, db: DB):
     db.add(Session(id=digest(raw), user_id=user.id, csrf_hash=digest(csrf), expires=now() + duration))
     audit(db, 'auth', 'Signed in', user.id, request.state.request_id); db.commit()
     response.set_cookie('best5_session', raw, max_age=duration if body.remember else None, **COOKIE)
-    response.set_cookie('best5_csrf', csrf, max_age=duration if body.remember else None, httponly=False, secure=settings.secure_cookies, samesite='lax', path='/')
+    response.set_cookie('best5_csrf', csrf, max_age=duration if body.remember else None, httponly=False, secure=settings.secure_cookies, samesite='lax', path='/', domain=csrf_domain(request))
     return public_user(user)
 
 def me(user: CurrentUser):
@@ -42,7 +49,7 @@ def logout(request: Request, response: Response, db: DB, user: CurrentUser):
     db.execute(delete(Session).where(Session.id == digest(request.cookies.get('best5_session', ''))))
     audit(db, 'auth', 'Signed out', user.id, request.state.request_id); db.commit()
     response.delete_cookie('best5_session', path=settings.api_v1_prefix, secure=settings.secure_cookies, httponly=True, samesite='lax')
-    response.delete_cookie('best5_csrf', path='/')
+    response.delete_cookie('best5_csrf', path='/', domain=csrf_domain(request))
     return {'message': 'Signed out'}
 
 def change_password(body: ChangePassword, db: DB, user: CurrentUser, request: Request):

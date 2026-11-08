@@ -7,7 +7,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.core.logging import logger
 
-MAX_BODY = max(30 * 1024 * 1024, max(settings.max_document_size_mb, settings.max_branding_image_size_mb) * 1024 * 1024 * 4 // 3 + 2 * 1024 * 1024)
+MAX_BODY = max(30 * 1024 * 1024, (settings.max_document_size_mb + settings.max_branding_image_size_mb) * 1024 * 1024 * 4 // 3 + 2 * 1024 * 1024)
 
 class SecurityMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):

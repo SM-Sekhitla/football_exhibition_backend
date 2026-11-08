@@ -275,3 +275,83 @@ def test_initial_admin_promotion_is_once_and_preserves_password(client):
 def test_login_cannot_choose_or_override_role(client):
     body={'email':'admin@best5.co.za','password':'TestInitialPassword!2026','role':'super_admin'}
     assert client.post('/api/v1/auth/login',json=body).status_code==422
+
+
+def test_sibling_domain_login_csrf_and_logout(client, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import create_app
+    monkeypatch.setattr(settings,'trusted_hosts',['api.best5football.co.za'])
+    monkeypatch.setattr(settings,'cors_origins',['https://best5football.co.za'])
+    monkeypatch.setattr(settings,'csrf_cookie_domain','best5football.co.za')
+    sibling=TestClient(create_app(),base_url='https://api.best5football.co.za')
+    origin={'Origin':'https://best5football.co.za'}
+    result=sibling.post('/api/v1/auth/login',headers=origin,json={'email':'admin@best5.co.za','password':'TestInitialPassword!2026','remember':True})
+    assert result.status_code==200
+    cookies=result.headers.get_list('set-cookie')
+    assert any('best5_csrf=' in item and 'Domain=best5football.co.za' in item for item in cookies)
+    assert all('Domain=' not in item for item in cookies if item.startswith('best5_session='))
+    csrf=sibling.cookies.get('best5_csrf')
+    headers={**origin,'X-CSRF-Token':csrf}
+    changed=sibling.post('/api/v1/auth/change-password',headers=headers,json={'currentPassword':'TestInitialPassword!2026','newPassword':'DomainLoginPassword!2026'})
+    assert changed.status_code==200
+    result=sibling.post('/api/v1/auth/logout',headers=headers,json={})
+    assert result.status_code==200
+    assert any('best5_csrf=' in item and 'Domain=best5football.co.za' in item and 'Max-Age=0' in item for item in result.headers.get_list('set-cookie'))
+    assert sibling.get('/api/v1/auth/me').status_code==401
+
+
+def test_preview_proxy_login_retains_host_only_csrf_with_production_domain_configured(client, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import create_app
+    monkeypatch.setattr(settings,'csrf_cookie_domain','best5football.co.za')
+    monkeypatch.setattr(settings,'cors_origins',['https://football-exhibition-cms.vercel.app'])
+    preview=TestClient(create_app())
+    headers={'Origin':'https://football-exhibition-cms.vercel.app'}
+    result=preview.post('/api/v1/auth/login',headers=headers,json={'email':'admin@best5.co.za','password':'TestInitialPassword!2026','remember':True})
+    assert result.status_code==200
+    assert all('Domain=' not in item for item in result.headers.get_list('set-cookie'))
+    headers['X-CSRF-Token']=preview.cookies.get('best5_csrf')
+    result=preview.post('/api/v1/auth/change-password',headers=headers,json={'currentPassword':'TestInitialPassword!2026','newPassword':'PreviewPassword!2026'})
+    assert result.status_code==200
+    result=preview.post('/api/v1/auth/logout',headers=headers,json={})
+    assert result.status_code==200
+    assert all('Domain=' not in item for item in result.headers.get_list('set-cookie'))
+
+
+def test_registration_logo_is_verified_and_promoted_to_public_team(client):
+    import io
+    from PIL import Image
+    output=io.BytesIO()
+    Image.new('RGB',(8,8),'green').save(output,format='PNG')
+    body=application('Logo United')
+    body['logo']={'name':'team.png','type':'image/png','data':'data:image/png;base64,'+base64.b64encode(output.getvalue()).decode()}
+    result=client.post('/api/v1/registrations/team',json=body)
+    assert result.status_code==201,result.text
+    identifier=result.json()['id']
+    assert client.get('/api/v1/public/bootstrap').json()['data']['teams']==[]
+    login(client)
+    record=client.get('/api/v1/admin/bootstrap').json()['data']['teamRegs'][0]
+    logo=record['logo']
+    assert logo.startswith('/api/v1/files/')
+    review={'status':'Approved','paymentStatus':'Verified','reviewNote':''}
+    result=client.patch(f'/api/v1/admin/registrations/team/{identifier}',json=review)
+    assert result.status_code==200
+    assert result.json()['data']['teams'][0]['logo']==logo
+    with TestClient(app) as public:
+        teams=public.get('/api/v1/public/bootstrap').json()['data']['teams']
+        assert teams[0]['logo']==logo
+        image=public.get(logo)
+        assert image.status_code==200 and image.headers['content-type'].startswith('image/png')
+        assert image.content==output.getvalue()
+        assert public.get(record['proofOfPayment']['data']).status_code==401
+
+
+def test_registration_rejects_invalid_and_oversized_logos(client,monkeypatch):
+    body=application()
+    body['logo']={'name':'fake.png','type':'image/png','data':'data:image/png;base64,'+base64.b64encode(b'not a real image').decode()}
+    assert client.post('/api/v1/registrations/team',json=body).status_code==422
+    body['logo']['type']='image/svg+xml'
+    assert client.post('/api/v1/registrations/team',json=body).status_code==422
+    monkeypatch.setattr(settings,'max_branding_image_size_mb',1)
+    body['logo']={'name':'large.png','type':'image/png','data':'data:image/png;base64,'+base64.b64encode(b'x'*(1024*1024+1)).decode()}
+    assert client.post('/api/v1/registrations/team',json=body).status_code==422

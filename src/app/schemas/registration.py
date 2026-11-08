@@ -8,6 +8,11 @@ class Proof(StrictModel):
     data: str = Field(min_length=10, max_length=settings.max_document_size_mb * 1024 * 1024 * 4 // 3 + 1024)
     type: Literal['application/pdf','image/jpeg','image/png']
 
+class TeamLogo(StrictModel):
+    name: str = Field(min_length=1, max_length=200)
+    data: str = Field(min_length=10, max_length=settings.max_branding_image_size_mb * 1024 * 1024 * 4 // 3 + 1024)
+    type: Literal['image/jpeg','image/png','image/webp','image/gif','image/avif']
+
 class TeamApplication(StrictModel):
     teamName: str = Field(min_length=1, max_length=100)
     captain: str = Field(min_length=1, max_length=100)
@@ -15,6 +20,7 @@ class TeamApplication(StrictModel):
     city: str = Field(min_length=1, max_length=100)
     players: list[str] = Field(min_length=5, max_length=8)
     proofOfPayment: Proof
+    logo: TeamLogo | None = None
     prerequisitesAccepted: Literal[True]
 
     @field_validator('players')

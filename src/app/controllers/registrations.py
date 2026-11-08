@@ -20,9 +20,10 @@ def create_team(body: TeamApplication, db: DB, request: Request):
     identity = body.teamName.casefold()
     if db.scalar(select(Record).where(Record.collection=='teamRegs', Record.identity==identity)): raise HTTPException(409,'An application already exists for this team. Contact the organiser if you need help.')
     identifier = 'B5-' + uuid4().hex[:12].upper()
+    logo = save_upload(db, body.logo.name, body.logo.type, body.logo.data, owner=identifier)['src'] if body.logo else ''
     proof = save_upload(db, body.proofOfPayment.name, body.proofOfPayment.type, body.proofOfPayment.data, private=True, owner=identifier)
-    value = body.model_dump(exclude={'proofOfPayment','prerequisitesAccepted'})
-    value.update(id=identifier, email=str(body.email).lower(), submitted=datetime.now(timezone.utc).isoformat(), status='Pending', paymentStatus='Under review', proofOfPayment={k:proof[k] for k in ('id','name','type','data')}, prerequisitesAcceptedAt=datetime.now(timezone.utc).isoformat(), prerequisitesVersion=db.get(Document,'settings').revision)
+    value = body.model_dump(exclude={'proofOfPayment','prerequisitesAccepted','logo'})
+    value.update(logo=logo, id=identifier, email=str(body.email).lower(), submitted=datetime.now(timezone.utc).isoformat(), status='Pending', paymentStatus='Under review', proofOfPayment={k:proof[k] for k in ('id','name','type','data')}, prerequisitesAcceptedAt=datetime.now(timezone.utc).isoformat(), prerequisitesVersion=db.get(Document,'settings').revision)
     db.add(Record(id=identifier, collection='teamRegs', identity=identity, value=value))
     reserve(db,'teamRegs'); audit(db,'registrations','Team application submitted',request_id=request.state.request_id)
     enqueue_email(db,value['email'],'BEST5 team application received', f'Your reference is {identifier}. Your application and proof of payment are pending review. Check your status using this reference and email on the BEST5 website. Submission does not confirm your place.')
@@ -66,7 +67,7 @@ def review(kind: str, identifier: str, body: Review, db: DB, request: Request, u
             if not any(t['id'] == team_id for t in teams):
                 if len(teams) >= document(db,'settings')['numberOfTeams']: raise HTTPException(409,'Tournament capacity reached')
                 team_id = str(uuid4())
-                teams.append({'id':team_id,'name':value['teamName'],'short':''.join(n[0] for n in value['teamName'].split())[:3].upper(),'captain':value['captain'],'city':value['city'],'group':'Unassigned','logo':'','players':[{'id':f'{team_id}-{i}','name':n,'number':i+1,'position':'GK' if i==0 else 'FW'} for i,n in enumerate(value['players'])]})
+                teams.append({'id':team_id,'name':value['teamName'],'short':''.join(n[0] for n in value['teamName'].split())[:3].upper(),'captain':value['captain'],'city':value['city'],'group':'Unassigned','logo':value.get('logo') or '','players':[{'id':f'{team_id}-{i}','name':n,'number':i+1,'position':'GK' if i==0 else 'FW'} for i,n in enumerate(value['players'])]})
                 value['officialTeamId'] = team_id
         elif team_id:
             if any(team_id in (f['homeId'],f['awayId']) for f in document(db,'fixtures')): raise HTTPException(409,'Remove this team from fixtures before reversing approval')

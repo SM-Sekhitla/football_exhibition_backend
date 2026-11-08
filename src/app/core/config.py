@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     cors_origins: CsvList = ['http://localhost:5173', 'http://127.0.0.1:5173']
     trusted_hosts: CsvList = ['localhost', '127.0.0.1', 'testserver']
     allowed_hosts: CsvList = []
+    csrf_cookie_domain: str | None = None
     secure_cookies: bool = Field(False, validation_alias=AliasChoices('SECURE_COOKIES', 'COOKIE_SECURE'))
     session_hours: int = Field(12, gt=0)
     access_token_expire_minutes: int | None = Field(None, gt=0)
@@ -67,6 +68,15 @@ class Settings(BaseSettings):
         value=value.rstrip('/')
         if not value.startswith('/') or value.startswith('//') or any(c in value for c in '?#{ }'):
             raise ValueError('API_V1_PREFIX must be an absolute URL path')
+        return value
+
+    @field_validator('csrf_cookie_domain',mode='before')
+    @classmethod
+    def cookie_domain(cls,value):
+        if not value: return None
+        value=value.strip().lstrip('.').lower()
+        if not re.fullmatch(r'[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?',value):
+            raise ValueError('CSRF_COOKIE_DOMAIN must be a hostname without scheme, path or port')
         return value
 
     @field_validator('log_level')
