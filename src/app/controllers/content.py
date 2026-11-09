@@ -91,7 +91,8 @@ def save_document_for_user(key,request,db,payload,user):
         if value.get('numberOfTeams',old['numberOfTeams']) < len(document(db,'teams')): raise HTTPException(409,'Capacity cannot be less than the current team count')
         value = {**old,**value}
     if key == 'landing':
-        if set(value)-set(document(db,key)): raise HTTPException(422,'Unknown landing-page field')
+        # The validated Landing schema defines allowed fields. Older saved documents
+        # may predate sponsorLogos and must accept newly supported fields.
         value = {**document(db,key),**value}
     if key == 'teams':
         old = {t['id']:t for t in document(db,'teams')}

@@ -381,3 +381,26 @@ def test_sponsor_logos_save_and_are_public(client):
     response=client.put('/api/v1/admin/content/landing',json={'value':landing,'revision':snapshot['revisions']['landing']})
     assert response.status_code==200,response.text
     assert client.get('/api/v1/public/bootstrap').json()['data']['landing']['sponsorLogos'][0]['name']=='Test Sponsor'
+
+
+def test_sponsor_save_supports_landing_documents_created_before_sponsors(client):
+    # Existing production records lack fields introduced after their first seed.
+    with SessionLocal() as db:
+        landing=db.get(Document,'landing')
+        old=dict(landing.value)
+        old.pop('sponsorLogos',None)
+        old['heroEyebrow']='Keep my existing headline'
+        landing.value=old
+        db.commit()
+    login(client)
+    snapshot=client.get('/api/v1/admin/bootstrap').json()
+    value=dict(snapshot['data']['landing'])
+    value['sponsorLogos']=[{'id':'new-sponsor','name':'New partner','image':'/assets/images/sponsors/aquelle.png','scale':1}]
+    response=client.put('/api/v1/admin/content/landing',json={'revision':snapshot['revisions']['landing'],'value':value})
+    assert response.status_code==200,response.text
+    public=client.get('/api/v1/public/bootstrap').json()['data']['landing']
+    assert public['sponsorLogos']==value['sponsorLogos']
+    assert public['heroEyebrow']=='Keep my existing headline'
+    current=response.json()
+    value['unsupportedField']='still rejected'
+    assert client.put('/api/v1/admin/content/landing',json={'revision':current['revisions']['landing'],'value':value}).status_code==422
