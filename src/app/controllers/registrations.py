@@ -35,23 +35,25 @@ def create_team(body: TeamApplication, db: DB, request: Request):
 
 def create_vendor(body: VendorApplication, db: DB, request: Request):
     lock_operations(db)
-    if not document(db,'settings')['modules']['vendorRegistration']: raise HTTPException(409,'Vendor registration is closed')
+    settings=document(db,'settings')
+    if not settings['modules']['vendorRegistration']: raise HTTPException(409,'Vendor registration is closed')
+    fee=settings.get('vendorFoodStallFee',1000) if body.category.strip().casefold()=='food & drinks' else settings.get('vendorStallFee',350)
     identifier = 'B5-' + uuid4().hex[:12].upper()
     identity = body.business.casefold()
     if db.scalar(select(Record).where(Record.collection=='vendorRegs',Record.identity==identity)): raise HTTPException(409,'An application already exists for this business')
-    value = body.model_dump(); value.update(id=identifier,email=str(body.email).lower(),submitted=datetime.now(timezone.utc).isoformat(),status='Pending',paymentStatus='Awaiting payment')
+    value = body.model_dump(); value.update(id=identifier,email=str(body.email).lower(),submitted=datetime.now(timezone.utc).isoformat(),status='Pending',paymentStatus='Awaiting payment',stallFee=fee)
     db.add(Record(id=identifier,collection='vendorRegs',identity=identity,value=value)); reserve(db,'vendorRegs')
-    text,html=application_email('vendor',value['business'],identifier,db)
+    text,html=application_email('vendor',value['business'],identifier,db,stall_fee=fee)
     enqueue_email(db,value['email'],'BEST5 vendor application received',text,html)
     audit(db,'registrations','Vendor application submitted',request_id=request.state.request_id); db.commit()
-    return {'id':identifier,'status':'Pending','paymentStatus':'Awaiting payment'}
+    return {'id':identifier,'status':'Pending','paymentStatus':'Awaiting payment','stallFee':fee}
 
 
 def lookup(body: Lookup, db: DB):
     record = db.get(Record, body.reference.strip().upper())
     if not record or record.value['email'].lower() != str(body.email).lower(): raise HTTPException(404,'No application matches this reference and email')
     # Never expose proof data or other application PII through public lookup.
-    return {k:v for k,v in record.value.items() if k in ('id','teamName','business','status','paymentStatus','reviewNote')}
+    return {k:v for k,v in record.value.items() if k in ('id','teamName','business','status','paymentStatus','reviewNote','stallFee')}
 
 
 def review(kind: str, identifier: str, body: Review, db: DB, request: Request, user=Depends(require('operations:write'))):

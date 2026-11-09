@@ -67,11 +67,13 @@ def notification_email(subject,body,db=None):
     return frame(title=subject,eyebrow='An update from BEST5',content=content,button_label='Visit BEST5',button_url=settings.frontend_url,preheader=subject,logo=logo_url(db))
 
 
-def application_email(kind,name,reference,db=None):
+def application_email(kind,name,reference,db=None,stall_fee=None):
     from urllib.parse import urlencode
     link=settings.frontend_url.rstrip('/')+'/application-status#'+urlencode({'reference':reference})
     label='team' if kind=='team' else 'vendor'
     details=('Your application and proof of payment are pending review.' if kind=='team' else 'Your vendor application is pending review. Contact the organiser for payment instructions.')
+    if kind=='vendor' and stall_fee is not None:
+        details += f' Your stall fee is R{stall_fee:,.0f}.'
     content=f'''<p style="margin:0 0 18px;">Thank you for registering <strong style="color:#f5f7f4;">{escape(name)}</strong> with BEST5.</p>
 <p style="margin:0 0 20px;">{details}</p><div style="padding:20px;background:#152b1d;border:1px solid #304b37;border-radius:12px;"><p style="margin:0 0 8px;font-size:11px;letter-spacing:2px;">YOUR APPLICATION REFERENCE</p><strong style="color:#c8ff4b;font-size:23px;">{escape(reference)}</strong></div><p style="margin:20px 0 0;">Keep this reference. Use it with the email address you registered with to check your status.</p>'''
     html=frame(title='Application received.',eyebrow=f'Your BEST5 {label} registration',content=content,button_label='Check application status',button_url=link,preheader=f'Your reference: {reference}. Check your application status.',logo=logo_url(db),notice='Submission does not confirm your place. The registration team will review your application.')

@@ -33,9 +33,13 @@ def save_upload(db, name, mime, data, private=False, owner=None):
         except (UnidentifiedImageError, ValueError, OSError, Image.DecompressionBombError):
             raise HTTPException(422, 'Invalid or oversized image file')
     identifier = str(uuid4())
-    directory = settings.storage_dir if private else settings.branding_path
-    directory.mkdir(parents=True, exist_ok=True)
-    path = directory / identifier
-    path.write_bytes(raw); path.chmod(0o600)
+    if settings.upload_storage == 'ftps':
+        from app.services.ftps_storage import store
+        store(identifier, raw, private)
+    else:
+        directory = settings.storage_dir if private else settings.branding_path
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / identifier
+        path.write_bytes(raw); path.chmod(0o600)
     db.add(Upload(id=identifier, name=Path(name).name[:200], mime=mime, private=private, owner_record=owner))
     return {'id': identifier, 'name': Path(name).name[:200], 'type': mime, 'data': f'{settings.api_v1_prefix}/files/{identifier}', 'src': f'{settings.api_v1_prefix}/files/{identifier}'}

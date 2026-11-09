@@ -68,7 +68,7 @@ def validate_content(key, value):
             if post.get('slug'): slugs.append(post['slug'])
             post['content'] = bleach.clean(post.get('content',''), tags=['p','br','div','h2','h3','strong','b','em','i','u','ul','ol','li','blockquote','a','figure','img','figcaption'], attributes={'a':['href','rel'],'img':['src','alt']}, protocols=['http','https','mailto'], strip=True)
     if key == 'settings':
-        for field in ['prize','numberOfTeams','affiliationFee','spotBookingFee','vendorStallFee']:
+        for field in ['prize','numberOfTeams','affiliationFee','spotBookingFee','vendorStallFee','vendorFoodStallFee']:
             if field in value and (isinstance(value[field],bool) or not isinstance(value[field],(int,float)) or value[field] < (2 if field == 'numberOfTeams' else 0)):
                 raise HTTPException(422, f'Invalid {field}')
         if 'numberOfTeams' in value and int(value['numberOfTeams']) != value['numberOfTeams']: raise HTTPException(422,'Capacity must be a whole number')

@@ -224,3 +224,7 @@ Build the backend image from the repository root: `docker build -t best5-backend
 The API adds Render's `RENDER_EXTERNAL_HOSTNAME` to its explicit host allowlist automatically. Add custom domains through `ALLOWED_HOSTS` (hostnames only, no `https://` or paths). For existing deployments before this change, set `ALLOWED_HOSTS=football-exhibition-backend.onrender.com` and redeploy to resolve `Invalid host header`.
 
 Swagger is at `/docs` in development. To enable it in production, set `DOCS_ENABLED=true` in the service environment and redeploy. Set the health-check path to `/api/v1/health`; `/` is not an application endpoint.
+
+## Persistent uploads on Sivehost
+
+Set `UPLOAD_STORAGE=ftps` and configure the restricted Sivehost account in Render to store new images and POP files outside Render's temporary filesystem. The existing download URLs and permissions are retained. See [Sivehost storage setup](src/docs/sivehost-storage.md) for the exact environment variables, validation steps, and handling of existing missing images. No frontend release or database migration is needed for this switch.

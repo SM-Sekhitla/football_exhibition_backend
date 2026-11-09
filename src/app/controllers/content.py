@@ -2,7 +2,7 @@ import copy
 import re
 from datetime import datetime
 from fastapi import Depends, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from app.api.deps import DB, require
 from app.core.config import ROOT, settings
@@ -87,7 +87,6 @@ def save_document_for_user(key,request,db,payload,user):
     if key == 'settings':
         old = document(db,key)
         if value.get('banking',old['banking']) != old['banking']: raise HTTPException(403,'Use the password-protected banking update')
-        if set(value)-set(old): raise HTTPException(422,'Unknown setting')
         if value.get('numberOfTeams',old['numberOfTeams']) < len(document(db,'teams')): raise HTTPException(409,'Capacity cannot be less than the current team count')
         value = {**old,**value}
     if key == 'landing':
@@ -151,6 +150,28 @@ def download(identifier: str, request: Request, db: DB):
         from app.core.permissions import ROLES
         if user.must_change_password or 'operations:read' not in ROLES.get(user.role,set()): raise HTTPException(403,'You cannot access payment proofs')
         audit(db,'documents','Payment proof downloaded',user.id,request.state.request_id); db.commit()
+    if settings.upload_storage == 'ftps':
+        from app.services.ftps_storage import retrieve
+        remote = retrieve(row.id, row.private)
+        if remote is not None:
+            from urllib.parse import quote
+            disposition = 'attachment' if row.private else 'inline'
+            encoded = quote(row.name)
+            filename = f"filename*=utf-8''{encoded}" if encoded != row.name else f'filename="{encoded}"'
+            remote.seek(0, 2); size = remote.tell(); remote.seek(0)
+            def chunks():
+                try:
+                    while chunk := remote.read(64 * 1024):
+                        yield chunk
+                finally:
+                    remote.close()
+            return StreamingResponse(chunks(), media_type=row.mime, headers={
+                'Content-Disposition': f'{disposition}; {filename}',
+                'Content-Length': str(size),
+                'Cache-Control': 'private, no-store' if row.private else 'public, max-age=86400',
+                'X-Content-Type-Options': 'nosniff',
+            })
+    # During migration, previously uploaded local files can still be read if present.
     directory=settings.storage_dir if row.private else settings.branding_path
     path=directory / row.id
     if not path.is_file(): path=settings.storage_dir / row.id

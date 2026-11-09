@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 TEST_ROOT=Path(tempfile.mkdtemp(prefix='best5-api-tests-'))
-os.environ.update(DATABASE_URL=f'sqlite:///{TEST_ROOT / "test.db"}', STORAGE_DIR=str(TEST_ROOT/'uploads'), LOG_DIR=str(TEST_ROOT/'logs'), BRANDING_PATH=str(TEST_ROOT/'branding'), INITIAL_ADMIN_EMAIL='admin@best5.co.za', INITIAL_ADMIN_PASSWORD='TestInitialPassword!2026', EMAIL_ENABLED='false', RATE_LIMIT_ENABLED='false')
+os.environ.update(UPLOAD_STORAGE='local',DATABASE_URL=f'sqlite:///{TEST_ROOT / "test.db"}', STORAGE_DIR=str(TEST_ROOT/'uploads'), LOG_DIR=str(TEST_ROOT/'logs'), BRANDING_PATH=str(TEST_ROOT/'branding'), INITIAL_ADMIN_EMAIL='admin@best5.co.za', INITIAL_ADMIN_PASSWORD='TestInitialPassword!2026', EMAIL_ENABLED='false', RATE_LIMIT_ENABLED='false')
 from fastapi.testclient import TestClient
 from app.main import app
 from app.db.models import Base

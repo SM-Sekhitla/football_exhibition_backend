@@ -50,7 +50,8 @@
       "homepageNews": true,
       "homepageTeams": true,
       "homepageSponsors": true
-    }
+    },
+    "vendorFoodStallFee": 1000
   },
   "landing": {
     "heroEyebrow": "SM Organisation presents",

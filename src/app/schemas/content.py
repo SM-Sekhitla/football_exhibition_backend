@@ -113,6 +113,7 @@ class SettingsSchema(Model):
     affiliationFee: float = Field(ge=0,allow_inf_nan=False)
     spotBookingFee: float = Field(ge=0,allow_inf_nan=False)
     vendorStallFee: float = Field(ge=0,allow_inf_nan=False)
+    vendorFoodStallFee: float = Field(default=1000,ge=0,allow_inf_nan=False)
     contactEmail: str = Field(min_length=1,max_length=254)
     contactPhone: str = Field(min_length=1,max_length=100)
     whatsapp: str = Field(max_length=2000)

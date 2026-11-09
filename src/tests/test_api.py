@@ -404,3 +404,34 @@ def test_sponsor_save_supports_landing_documents_created_before_sponsors(client)
     current=response.json()
     value['unsupportedField']='still rejected'
     assert client.put('/api/v1/admin/content/landing',json={'revision':current['revisions']['landing'],'value':value}).status_code==422
+
+
+def test_vendor_fees_follow_category_and_are_stored_and_emailed(client):
+    categories=['Food & Drinks','Clothing & Accessories','Lifestyle & Services','Brand Activations']
+    for index,category in enumerate(categories):
+        body={'business':f'Stall {index}','contact':'Vendor','category':category,'email':f'vendor{index}@example.com','description':'Matchday stall.'}
+        response=client.post('/api/v1/registrations/vendor',json=body)
+        assert response.status_code==201,response.text
+        expected=1000 if index==0 else 350
+        assert response.json()['stallFee']==expected
+        identifier=response.json()['id']
+        with SessionLocal() as db:
+            from app.db.models import Record
+            assert db.get(Record,identifier).value['stallFee']==expected
+            job=db.scalar(select(EmailJob).where(EmailJob.recipient==body['email']))
+            assert f'R{expected:,.0f}' in job.body and f'R{expected:,.0f}' in job.html_body
+        body['stallFee']=1
+        assert client.post('/api/v1/registrations/vendor',json=body).status_code==422
+
+
+def test_existing_settings_accept_food_fee_and_posts_keep_saved_order(client):
+    with SessionLocal() as db:
+        row=db.get(Document,'settings');value=dict(row.value);value.pop('vendorFoodStallFee',None);row.value=value;db.commit()
+    login(client)
+    snapshot=client.get('/api/v1/admin/bootstrap').json()
+    response=client.put('/api/v1/admin/content/settings',json={'revision':snapshot['revisions']['settings'],'value':{'vendorFoodStallFee':1000}})
+    assert response.status_code==200,response.text
+    posts=list(reversed(snapshot['data']['posts']))
+    response=client.put('/api/v1/admin/content/posts',json={'revision':snapshot['revisions']['posts'],'value':posts})
+    assert response.status_code==200,response.text
+    assert [p['id'] for p in client.get('/api/v1/public/bootstrap').json()['data']['posts']]==[p['id'] for p in posts if p['status']=='Published']

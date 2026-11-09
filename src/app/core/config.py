@@ -1,9 +1,9 @@
-from pathlib import Path
-from typing import Annotated
+from pathlib import Path, PurePosixPath
+from typing import Annotated, Literal
 import json
 import re
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
-from pydantic import AliasChoices, Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     default_platform_admin_username: str = 'BEST5 Administrator'
     storage_dir: Path = Field(ROOT / 'data/uploads', validation_alias=AliasChoices('STORAGE_DIR','DOCUMENT_PATH'))
     branding_path: Path = ROOT / 'data/uploads'
+    upload_storage: Literal['local','ftps'] = 'local'
+    ftps_host: str = ''
+    ftps_port: int = Field(21,ge=1,le=65535)
+    ftps_username: str = ''
+    ftps_password: SecretStr = SecretStr('')
+    ftps_root: str = '/'
+    ftps_timeout_seconds: int = Field(20,ge=1,le=120)
     log_dir: Path = ROOT / 'logs'
     log_level: str = 'INFO'
     brevo_api_key: str = ''
@@ -79,6 +86,13 @@ class Settings(BaseSettings):
             raise ValueError('CSRF_COOKIE_DOMAIN must be a hostname without scheme, path or port')
         return value
 
+    @field_validator('ftps_root')
+    @classmethod
+    def remote_root(cls,value):
+        if not value.startswith('/') or '..' in value.split('/') or any(c in value for c in '\r\n\x00'):
+            raise ValueError('FTPS_ROOT must be an absolute path inside the restricted FTP account')
+        return str(PurePosixPath(value))
+
     @field_validator('log_level')
     @classmethod
     def level(cls,value):
@@ -115,6 +129,11 @@ class Settings(BaseSettings):
                 raise ValueError('Production requires secure cookies and an HTTPS frontend URL')
             if '*' in self.cors_origins or '*' in self.trusted_hosts:
                 raise ValueError('Production requires explicit origins and hosts')
+        if self.upload_storage == 'ftps':
+            if not self.ftps_host or not self.ftps_username or not self.ftps_password.get_secret_value():
+                raise ValueError('FTPS uploads require FTPS_HOST, FTPS_USERNAME and FTPS_PASSWORD')
+            if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]*',self.ftps_host) or any(c in self.ftps_username for c in '\r\n\x00'):
+                raise ValueError('Invalid FTPS host or username')
         if self.email_enabled and (not self.brevo_api_key or not self.email_sender):
             raise ValueError('Email requires BREVO_API_KEY and EMAIL_SENDER or BREVO_FROM_EMAIL')
         return self
