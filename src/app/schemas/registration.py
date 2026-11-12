@@ -20,7 +20,16 @@ class TeamApplication(StrictModel):
     city: str = Field(min_length=1, max_length=100)
     players: list[str] = Field(min_length=5, max_length=8)
     proofOfPayment: Proof
-    logo: TeamLogo | None = None
+    logo: TeamLogo
+    phone: str = Field(min_length=7, max_length=30)
+
+    @field_validator('phone')
+    @classmethod
+    def valid_phone(cls, value):
+        value = value.strip()
+        if any(c not in '+0123456789 ()-' for c in value) or not 7 <= sum(c.isdigit() for c in value) <= 15 or '+' in value[1:]:
+            raise ValueError('Enter a valid phone number with 7–15 digits')
+        return value
     prerequisitesAccepted: Literal[True]
 
     @field_validator('players')

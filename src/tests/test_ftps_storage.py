@@ -61,7 +61,7 @@ def remote(monkeypatch):
 def application():
     image=io.BytesIO(); Image.new('RGB',(8,8),'green').save(image,format='PNG')
     pdf=b'%PDF-1.4\n%%EOF'
-    return {'teamName':'Remote United','captain':'Captain','email':'captain@example.com','city':'Polokwane','players':[f'Player {i}' for i in range(5)],'prerequisitesAccepted':True,
+    return {'teamName':'Remote United','captain':'Captain','phone':'+27 71 234 5678','email':'captain@example.com','city':'Polokwane','players':[f'Player {i}' for i in range(5)],'prerequisitesAccepted':True,
             'logo':{'name':'logo.png','type':'image/png','data':'data:image/png;base64,'+base64.b64encode(image.getvalue()).decode()},
             'proofOfPayment':{'name':'proof.pdf','type':'application/pdf','data':'data:application/pdf;base64,'+base64.b64encode(pdf).decode()}}
 

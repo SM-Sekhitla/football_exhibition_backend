@@ -1,4 +1,6 @@
 import base64
+import io
+from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -11,8 +13,9 @@ from conftest import login
 
 
 def application(name='Test United'):
+    logo=io.BytesIO(); Image.new('RGB',(8,8),'green').save(logo,format='PNG')
     pdf=b'%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF'
-    return {'teamName':name,'captain':'Captain','email':'captain@example.com','city':'Polokwane','players':[f'Player {i}' for i in range(5)],'prerequisitesAccepted':True,'proofOfPayment':{'name':'proof.pdf','type':'application/pdf','data':'data:application/pdf;base64,'+base64.b64encode(pdf).decode()}}
+    return {'teamName':name,'captain':'Captain','phone':'+27 71 234 5678','logo':{'name':'logo.png','type':'image/png','data':'data:image/png;base64,'+base64.b64encode(logo.getvalue()).decode()},'email':'captain@example.com','city':'Polokwane','players':[f'Player {i}' for i in range(5)],'prerequisitesAccepted':True,'proofOfPayment':{'name':'proof.pdf','type':'application/pdf','data':'data:application/pdf;base64,'+base64.b64encode(pdf).decode()}}
 
 
 def test_auth_requires_rotation_csrf_logout_and_secure_headers(client):
@@ -60,7 +63,7 @@ def test_registration_private_pop_review_lookup_and_duplicate(client):
     assert len(client.get('/api/v1/public/bootstrap').json()['data']['teams'])==1
     assert client.post('/api/v1/registrations/lookup',json={'reference':identifier,'email':'captain@example.com'}).json()['status']=='Approved'
     with SessionLocal() as db:
-        assert len(db.scalars(select(EmailJob)).all())==2
+        assert len(db.scalars(select(EmailJob)).all())==3
     assert client.get('/api/v1/admin/logs?category=registrations').json()['total']>=2
 
 
@@ -363,7 +366,7 @@ def test_team_and_vendor_registration_queue_status_emails(client):
     assert team.status_code==201 and vendor.status_code==201
     with SessionLocal() as db:
         jobs=db.scalars(select(EmailJob)).all()
-        assert len(jobs)==2
+        assert len(jobs)==4
         for response,recipient in [(team,'captain@example.com'),(vendor,'vendor@example.com')]:
             job=next(job for job in jobs if job.recipient==recipient)
             reference=response.json()['id']
@@ -435,3 +438,41 @@ def test_existing_settings_accept_food_fee_and_posts_keep_saved_order(client):
     response=client.put('/api/v1/admin/content/posts',json={'revision':snapshot['revisions']['posts'],'value':posts})
     assert response.status_code==200,response.text
     assert [p['id'] for p in client.get('/api/v1/public/bootstrap').json()['data']['posts']]==[p['id'] for p in posts if p['status']=='Published']
+
+
+def test_team_requires_logo_and_phone_and_retains_phone_privately(client):
+    for field in ('logo', 'phone'):
+        body=application(); body.pop(field)
+        assert client.post('/api/v1/registrations/team',json=body).status_code==422
+    for phone in ('abc1234', '123', '+27+712345678', ' ' * 8):
+        body=application(); body['phone']=phone
+        assert client.post('/api/v1/registrations/team',json=body).status_code==422
+    result=client.post('/api/v1/registrations/team',json=application())
+    assert result.status_code==201
+    lookup=client.post('/api/v1/registrations/lookup',json={'reference':result.json()['id'],'email':'captain@example.com'})
+    assert 'phone' not in lookup.json()
+    login(client)
+    assert client.get('/api/v1/admin/bootstrap').json()['data']['teamRegs'][0]['phone']=='+27 71 234 5678'
+
+
+def test_submission_notifications_only_go_to_active_admin_roles(client):
+    from uuid import uuid4
+    with SessionLocal() as db:
+        for role, active in [('admin', True), ('admin', False), ('editor', True), ('reviewer', True)]:
+            db.add(User(id=str(uuid4()),name=role,email=f'{role}-{active}@example.com',role=role,active=active,password_hash='unused'))
+        db.commit()
+    responses=[client.post('/api/v1/registrations/team',json=application()),
+               client.post('/api/v1/registrations/vendor',json={'business':'Vendor <test>','contact':'Person','category':'Food & Drinks','email':'vendor@example.com','description':'Food'})]
+    assert all(response.status_code==201 for response in responses)
+    with SessionLocal() as db:
+        jobs=db.scalars(select(EmailJob).where(EmailJob.subject.like('BEST5 new %'))).all()
+        assert len(jobs)==4
+        assert {job.recipient for job in jobs}=={'admin@best5.co.za','admin-True@example.com'.lower()}
+        for job in jobs:
+            assert 'Review applications' in job.html_body
+            assert '/admin/' in job.html_body and '-registrations' in job.html_body
+            assert 'data:application' not in job.html_body
+        team_job=next(job for job in jobs if 'new team' in job.subject)
+        assert '+27 71 234 5678' in team_job.body
+        vendor_job=next(job for job in jobs if 'new vendor' in job.subject)
+        assert 'Vendor &lt;test&gt;' in vendor_job.html_body

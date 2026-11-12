@@ -79,3 +79,20 @@ def application_email(kind,name,reference,db=None,stall_fee=None):
     html=frame(title='Application received.',eyebrow=f'Your BEST5 {label} registration',content=content,button_label='Check application status',button_url=link,preheader=f'Your reference: {reference}. Check your application status.',logo=logo_url(db),notice='Submission does not confirm your place. The registration team will review your application.')
     text=f'Thank you for registering {name}.\nYour reference is {reference}.\n{details}\nCheck application status: {link}\nEnter your reference and registered email address. Submission does not confirm your place.'
     return text,html
+
+
+def submission_email(kind, value, db=None):
+    label = 'team' if kind == 'team' else 'vendor'
+    name = value['teamName'] if kind == 'team' else value['business']
+    link = settings.frontend_url.rstrip('/') + f'/admin/{label}-registrations'
+    lines = [f'New {label} application: {name}', f"Reference: {value['id']}",
+             f"Contact: {value.get('captain', value.get('contact', ''))}", f"Email: {value['email']}"]
+    if kind == 'team':
+        lines.append(f"Phone: {value['phone']}")
+    text = '\n'.join(lines) + f'\nReview application: {link}'
+    content = ''.join(f'<p style="margin:0 0 12px;">{escape(line)}</p>' for line in lines)
+    html = frame(title='New application received.', eyebrow=f'BEST5 {label} submission',
+                 content=content, button_label='Review applications', button_url=link,
+                 preheader=f'New {label} application: {name}', logo=logo_url(db),
+                 notice='Sign in to review this application. Payment proofs are available only in the admin area.')
+    return text, html

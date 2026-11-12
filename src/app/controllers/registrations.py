@@ -3,13 +3,20 @@ from uuid import uuid4
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
 from app.api.deps import DB, require
-from app.db.models import Document, Record
+from app.db.models import Document, Record, User
 from app.schemas.registration import Lookup, Review, TeamApplication, VendorApplication
 from app.services.audit import audit
 from app.services.content import document, lock_operations, reserve, snapshot
 from app.services.email import enqueue_email
-from app.services.email_templates import application_email
+from app.services.email_templates import application_email, submission_email
 from app.services.storage import save_upload
+
+
+def notify_admins(db, kind, value):
+    text, html = submission_email(kind, value, db)
+    recipients = db.scalars(select(User.email).where(User.active.is_(True), User.role.in_(['admin', 'super_admin']))).all()
+    for recipient in sorted(set(email.lower() for email in recipients)):
+        enqueue_email(db, recipient, f'BEST5 new {kind} submission — {value["id"]}', text, html)
 
 
 def create_team(body: TeamApplication, db: DB, request: Request):
@@ -21,7 +28,7 @@ def create_team(body: TeamApplication, db: DB, request: Request):
     identity = body.teamName.casefold()
     if db.scalar(select(Record).where(Record.collection=='teamRegs', Record.identity==identity)): raise HTTPException(409,'An application already exists for this team. Contact the organiser if you need help.')
     identifier = 'B5-' + uuid4().hex[:12].upper()
-    logo = save_upload(db, body.logo.name, body.logo.type, body.logo.data, owner=identifier)['src'] if body.logo else ''
+    logo = save_upload(db, body.logo.name, body.logo.type, body.logo.data, owner=identifier)['src']
     proof = save_upload(db, body.proofOfPayment.name, body.proofOfPayment.type, body.proofOfPayment.data, private=True, owner=identifier)
     value = body.model_dump(exclude={'proofOfPayment','prerequisitesAccepted','logo'})
     value.update(logo=logo, id=identifier, email=str(body.email).lower(), submitted=datetime.now(timezone.utc).isoformat(), status='Pending', paymentStatus='Under review', proofOfPayment={k:proof[k] for k in ('id','name','type','data')}, prerequisitesAcceptedAt=datetime.now(timezone.utc).isoformat(), prerequisitesVersion=db.get(Document,'settings').revision)
@@ -29,6 +36,7 @@ def create_team(body: TeamApplication, db: DB, request: Request):
     reserve(db,'teamRegs'); audit(db,'registrations','Team application submitted',request_id=request.state.request_id)
     text,html=application_email('team',value['teamName'],identifier,db)
     enqueue_email(db,value['email'],'BEST5 team application received',text,html)
+    notify_admins(db,'team',value)
     db.commit()
     return {'id':identifier, 'status':'Pending','paymentStatus':'Under review'}
 
@@ -45,6 +53,7 @@ def create_vendor(body: VendorApplication, db: DB, request: Request):
     db.add(Record(id=identifier,collection='vendorRegs',identity=identity,value=value)); reserve(db,'vendorRegs')
     text,html=application_email('vendor',value['business'],identifier,db,stall_fee=fee)
     enqueue_email(db,value['email'],'BEST5 vendor application received',text,html)
+    notify_admins(db,'vendor',value)
     audit(db,'registrations','Vendor application submitted',request_id=request.state.request_id); db.commit()
     return {'id':identifier,'status':'Pending','paymentStatus':'Awaiting payment','stallFee':fee}
 
