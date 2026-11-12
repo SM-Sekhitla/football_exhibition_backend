@@ -1,10 +1,11 @@
 """Durable upload storage using explicit FTPS and a restricted remote account."""
+from collections import OrderedDict
 from contextlib import contextmanager
 from ftplib import FTP, FTP_TLS, all_errors, error_perm
 import io
 import ssl
 from tempfile import SpooledTemporaryFile
-from threading import BoundedSemaphore
+from threading import BoundedSemaphore, Lock
 from uuid import UUID
 from fastapi import HTTPException
 from app.core.config import settings
@@ -12,6 +13,26 @@ from app.core.logging import logger
 
 MAX_STORED_FILE_BYTES = 50 * 1024 * 1024
 CONNECTION_SLOTS = BoundedSemaphore(3)
+# UUID upload contents are immutable. Bound memory per worker; never cache private files.
+PUBLIC_CACHE_BYTES = 32 * 1024 * 1024
+_PUBLIC_CACHE = OrderedDict()
+_CACHE_LOCK = Lock()
+
+
+def clear_public_cache():
+    with _CACHE_LOCK:
+        _PUBLIC_CACHE.clear()
+
+
+def cache_public(name, data):
+    if len(data) > PUBLIC_CACHE_BYTES:
+        return
+    with _CACHE_LOCK:
+        _PUBLIC_CACHE.pop(name, None)
+        while _PUBLIC_CACHE and sum(map(len, _PUBLIC_CACHE.values())) + len(data) > PUBLIC_CACHE_BYTES:
+            _PUBLIC_CACHE.popitem(last=False)
+        _PUBLIC_CACHE[name] = data
+
 
 
 class SecureFTP(FTP_TLS):
@@ -94,6 +115,12 @@ def store(identifier, raw, private):
 def retrieve(identifier, private):
     """Return a bounded temporary stream, or None if the remote file is missing."""
     name = filename(identifier)
+    if not private:
+        with _CACHE_LOCK:
+            cached = _PUBLIC_CACHE.get(name)
+            if cached is not None:
+                _PUBLIC_CACHE.move_to_end(name)
+                return io.BytesIO(cached)
     output = SpooledTemporaryFile(max_size=2 * 1024 * 1024, mode='w+b')
     def write(chunk):
         if output.tell() + len(chunk) > MAX_STORED_FILE_BYTES:
@@ -109,6 +136,9 @@ def retrieve(identifier, private):
                     output.close()
                     return None
                 raise
+        if not private and output.tell() <= PUBLIC_CACHE_BYTES:
+            output.seek(0)
+            cache_public(name, output.read())
         output.seek(0)
         return output
     except all_errors as error:

@@ -47,6 +47,7 @@ class FakeFTP:
 
 @pytest.fixture
 def remote(monkeypatch):
+    ftps_storage.clear_public_cache()
     FakeFTP.files = {}; FakeFTP.directories = {'/'}; FakeFTP.actions = []
     monkeypatch.setattr(ftps_storage,'SecureFTP',FakeFTP)
     monkeypatch.setattr(settings,'upload_storage','ftps')
@@ -148,3 +149,17 @@ def test_data_channel_reuses_verified_tls_session(monkeypatch):
     monkeypatch.setattr(ftps_storage.FTP,'ntransfercmd',lambda *args:(raw,42))
     assert ftp.ntransfercmd('RETR file')==(encrypted,42)
     ftp.context.wrap_socket.assert_called_once_with(raw,server_hostname='ftp.example.com',session=session)
+
+
+def test_public_cache_avoids_repeat_ftp_and_never_caches_private(remote, monkeypatch):
+    public, private = str(uuid4()), str(uuid4())
+    remote.directories.update({'/public', '/private'})
+    remote.files.update({'/public/'+public: b'image', '/private/'+private: b'proof'})
+    for identifier, is_private in ((public, False), (public, False), (private, True), (private, True)):
+        with ftps_storage.retrieve(identifier, is_private) as stream:
+            assert stream.read() == (b'proof' if is_private else b'image')
+    assert sum(action[0] == 'connect' for action in remote.actions) == 3
+    monkeypatch.setattr(ftps_storage, 'PUBLIC_CACHE_BYTES', 6)
+    ftps_storage.cache_public(str(uuid4()), b'new')
+    assert sum(map(len, ftps_storage._PUBLIC_CACHE.values())) <= 6
+    assert private not in ftps_storage._PUBLIC_CACHE
